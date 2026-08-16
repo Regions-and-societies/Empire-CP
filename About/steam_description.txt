@@ -1,0 +1,32 @@
+[b]Version:[/b] v0.1.0 (Target: RimWorld 1.6)
+
+[img]https://i.imgur.com/8lcHaQo.png[/img]
+
+[h1]Regions and Societies: Empire Patch[/h1]
+Compatibility patch: [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3701480464]Empire Refactored[/url] colonies are classified, populated and owned under [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3784666060]Regions and Societies[/url] territory rules, and Empire's settlement placement, reward economy and tithe respect regional ownership.
+
+[h2]What it does[/h2]
+[list]
+[*] [b]Typed binding:[/b] Empire colonies are recognised by real type and member - population from actual workers, tier from settlement level. A rename in Empire is a compile error, never a silent zero in-game.
+[*] [b]Territory-governed placement:[/b] founding an Empire settlement inside another faction's region is refused, with the reason shown.
+[*] [b]Your empire on the map:[/b] the player's empire resolves to Empire's own faction, labelled with Empire's configured name.
+[*] [b]Reward and tithe economy:[/b] rewards honour the reward def's filters, tech level and quality ranges, and tithe value reflects real stack value.
+[/list]
+
+No settings of its own - all governance toggles live in Regions and Societies. Installed means enabled.
+
+[h2]Changelog (v0.1.0)[/h2]
+[list]
+[*] Initial release: Empire integration extracted from Regions and Societies core into a typed compatibility patch binding Empire's assembly directly.
+[/list]
+
+[h2]Requirements[/h2]
+[list]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3784666060]Regions and Societies[/url]
+[*] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3701480464]Empire Refactored[/url]
+[/list]
+
+[h2]Source Code and Support[/h2]
+GitHub: [url]https://github.com/Regions-and-societies/Empire-CP[/url]
+Licence: [url=https://polyformproject.org/licenses/noncommercial/1.0.0/]PolyForm Noncommercial License 1.0.0[/url]
+Support development: [url]https://ko-fi.com/archdukejim[/url]

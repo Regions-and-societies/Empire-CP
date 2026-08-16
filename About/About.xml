@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ModMetaData>
+    <name>Regions and Societies: Empire Patch</name>
+    <author>Regions and Societies Team</author>
+    <packageId>RegionsAndSocieties.EmpireCP</packageId>
+    <url>https://github.com/Regions-and-societies/Empire-CP</url>
+    <modVersion>0.1.0</modVersion>
+    <supportedVersions>
+        <li>1.6</li>
+    </supportedVersions>
+    <modDependencies>
+        <li>
+            <packageId>RegionsAndSocieties.Core</packageId>
+            <displayName>Regions and Societies</displayName>
+            <downloadUrl>https://github.com/Regions-and-societies/Core-MMF/releases/latest</downloadUrl>
+        </li>
+        <li>
+            <packageId>Matathias.Empire</packageId>
+            <displayName>Empire Refactored</displayName>
+            <steamWorkshopUrl>steam://url/CommunityFilePage/3701480464</steamWorkshopUrl>
+        </li>
+    </modDependencies>
+    <loadAfter>
+        <li>RegionsAndSocieties.Core</li>
+        <li>Matathias.Empire</li>
+    </loadAfter>
+    <description>Compatibility patch: Empire Refactored colonies are classified, populated and owned under Regions and Societies territory rules, and Empire's settlement placement, reward economy and tithe respect regional ownership.
+
+This patch binds directly against Empire's assembly, so its settlements are recognised by real type and member rather than by name guessing. Requires both Regions and Societies and Empire Refactored.</description>
+</ModMetaData>

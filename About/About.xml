@@ -13,6 +13,7 @@
             <packageId>RegionsAndSocieties.Core</packageId>
             <displayName>Regions and Societies</displayName>
             <downloadUrl>https://github.com/Regions-and-societies/Core-MMF/releases/latest</downloadUrl>
+            <steamWorkshopUrl>steam://url/CommunityFilePage/3784666060</steamWorkshopUrl>
         </li>
         <li>
             <packageId>Matathias.Empire</packageId>

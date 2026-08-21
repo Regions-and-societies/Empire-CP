@@ -1,6 +1,12 @@
+using System.Linq;
+using System.Reflection;
 using System.Text;
+using FactionColonies;
+using FactionColonies.util;
+using HarmonyLib;
 using LudeonTK;
 using RimWorld.Planet;
+using RegionsAndSocieties;
 using RegionsAndSocieties.Integration;
 using Verse;
 
@@ -40,6 +46,52 @@ namespace RegionsAndSocieties.EmpireCP
                 }
             }
             sb.AppendLine($"{count} Empire world object(s).");
+            Log.Message(sb.ToString());
+        }
+
+        /// <summary>
+        /// Debug validation for the regional hiring cost (issue #2): names the resolved target method,
+        /// then dumps the base laborer cost and its scaled price against several of the world's regions
+        /// ordered by population, so both the binding and the scaling direction are checkable headlessly
+        /// via run_debug_action — a crowded region must quote cheaper than an empty one.
+        /// </summary>
+        [DebugAction("Regions and Societies", "R&S Empire-CP: hiring cost by region", actionType = DebugActionType.Action, allowedGameStates = AllowedGameStates.PlayingOnMap | AllowedGameStates.PlayingOnWorld)]
+        private static void HiringCostByRegion()
+        {
+            var sb = new StringBuilder();
+            sb.AppendLine("--- Empire-CP regional hiring cost ---");
+
+            MethodInfo target = AccessTools.Method(typeof(LaborerHireUtil), "CalculateCost", new[] { typeof(int), typeof(int) });
+            sb.AppendLine($"resolved target: {(target == null ? "NOT FOUND" : target.DeclaringType.FullName + "." + target.Name + "(int,int)")}");
+
+            int count = LaborerHireUtil.CalculateCount();
+            int baseCost = count * FCSettings.laborerCostPerDay * FCSettings.laborerDurationDays;
+            sb.AppendLine($"base quote: {count} laborers x {FCSettings.laborerCostPerDay}/day x {FCSettings.laborerDurationDays} days = {baseCost} silver (unscaled)");
+            sb.AppendLine($"bounds: population 0 -> x{RegionalHiringCost.MaxFactor:0.00}, dense -> x{RegionalHiringCost.MinFactor:0.00}, pivot at {RegionalHiringCost.PivotPopulation:0} pop");
+
+            var mgr = Find.World?.GetComponent<SynapseRegionManager>();
+            var provinces = mgr?.Provinces;
+            if (provinces == null || provinces.Count == 0)
+            {
+                sb.AppendLine("no regions resolved on this world.");
+                Log.Message(sb.ToString());
+                return;
+            }
+
+            var sample = provinces
+                .OrderByDescending(p => p.currentPopulation)
+                .Where((p, i) => i < 4 || i >= provinces.Count - 4)   // densest few and emptiest few
+                .Distinct();
+
+            foreach (var p in sample)
+            {
+                int pop = p.currentPopulation;
+                float factor = RegionalHiringCost.Factor(pop);
+                int scaled = RegionalHiringCost.Scale(baseCost, pop);
+                string where = string.IsNullOrEmpty(p.name) ? $"region {p.id}" : p.name;
+                sb.AppendLine($"  {where,-24} pop={pop,-5} x{factor:0.00} -> {scaled,-6} ({RegionalHiringCost.Direction(pop)})");
+            }
+
             Log.Message(sb.ToString());
         }
     }

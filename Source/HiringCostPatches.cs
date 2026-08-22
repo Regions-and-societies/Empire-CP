@@ -112,19 +112,19 @@ namespace RegionsAndSocieties.EmpireCP
         }
 
         /// <summary>
-        /// The settlement's tier, classified by core from Empire's own population and upgrade level —
-        /// both read through the adapter registry, so this mod's own adapter is what answers.
+        /// The settlement's rung, from Empire's own upgrade level read through the adapter registry
+        /// (so this mod's own adapter is what answers) and split across the five rungs by
+        /// <see cref="HiringCostModel.TierForLevel"/> — the full +25%…−25% range, two Empire levels
+        /// per rung at the default ceiling.
         /// </summary>
         internal static SettlementTier TierOf(WorldSettlementFC settlement)
         {
             if (settlement == null) return SettlementTier.None;
-            if (!WorldObjectAdapterRegistry.TryClassify(settlement, out WorldObjectKind kind))
+            if (!WorldObjectAdapterRegistry.TryGetLevel(settlement, out int level, out int maxLevel))
             {
-                kind = WorldObjectKind.Settlement;
+                return SettlementTier.None;
             }
-            WorldObjectAdapterRegistry.TryGetPopulation(settlement, out int population);
-            WorldObjectAdapterRegistry.TryGetLevel(settlement, out int level, out int maxLevel);
-            return SettlementSizeEvaluator.Classify(kind, population, 0, level, maxLevel);
+            return HiringCostModel.TierForLevel(level, maxLevel);
         }
 
         /// <summary>

@@ -18,6 +18,31 @@ namespace RegionsAndSocieties.EmpireCP
     public static class HiringCostModel
     {
         /// <summary>
+        /// The rung for an Empire settlement, from its own upgrade level: the level range is split
+        /// into five equal bands, lowest → Village, highest → Metropolis, so every rung is reachable
+        /// and a fully upgraded colony earns the full −25%. With Empire's default ten levels this is
+        /// simply two levels per rung (1–2, 3–4, 5–6, 7–8, 9–10). Unknown level → no adjustment.
+        /// </summary>
+        public static SettlementTier TierForLevel(int level, int maxLevel)
+        {
+            if (level <= 0 || maxLevel <= 0) return SettlementTier.None;
+            if (maxLevel == 1) return SettlementTier.City;   // no range to split — sit at the neutral centre
+
+            float fraction = (level - 1f) / (maxLevel - 1f); // 0 at level 1, 1 at the top level
+            int band = (int)(fraction * 5f);                 // 0..5 (5 only exactly at the top)
+            if (band > 4) band = 4;
+
+            switch (band)
+            {
+                case 0: return SettlementTier.Village;
+                case 1: return SettlementTier.Town;
+                case 2: return SettlementTier.City;
+                case 3: return SettlementTier.MajorCity;
+                default: return SettlementTier.Metropolis;
+            }
+        }
+
+        /// <summary>
         /// The cost multiplier for a settlement tier. City is the neutral centre (×1.00); each step
         /// away is a flat 10–25%. Dearer in a small settlement, cheaper in a developed one. An
         /// unclassified tier (<see cref="SettlementTier.None"/>) applies no adjustment.

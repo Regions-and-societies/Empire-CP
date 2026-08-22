@@ -6,8 +6,8 @@ using FactionColonies.util;
 using HarmonyLib;
 using LudeonTK;
 using RimWorld.Planet;
-using RegionsAndSocieties;
 using RegionsAndSocieties.Integration;
+using RegionsAndSocieties.Sizing;
 using Verse;
 
 namespace RegionsAndSocieties.EmpireCP
@@ -50,46 +50,45 @@ namespace RegionsAndSocieties.EmpireCP
         }
 
         /// <summary>
-        /// Debug validation for the regional hiring cost (issue #2): names the resolved target method,
-        /// then dumps the base laborer cost and its scaled price against several of the world's regions
-        /// ordered by population, so both the binding and the scaling direction are checkable headlessly
-        /// via run_debug_action — a crowded region must quote cheaper than an empty one.
+        /// Debug validation for the tier-based hiring cost (issue #2): names the resolved target
+        /// method and the +25/+10/0/-10/-25 ladder, then dumps each Empire settlement's tier and the
+        /// price the laborer quote would carry there, so both the binding and the direction are
+        /// checkable headlessly via run_debug_action — a bigger settlement must quote cheaper.
         /// </summary>
-        [DebugAction("Regions and Societies", "R&S Empire-CP: hiring cost by region", actionType = DebugActionType.Action, allowedGameStates = AllowedGameStates.PlayingOnMap | AllowedGameStates.PlayingOnWorld)]
-        private static void HiringCostByRegion()
+        [DebugAction("Regions and Societies", "R&S Empire-CP: hiring cost by tier", actionType = DebugActionType.Action, allowedGameStates = AllowedGameStates.PlayingOnMap | AllowedGameStates.PlayingOnWorld)]
+        private static void HiringCostByTier()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("--- Empire-CP regional hiring cost ---");
+            sb.AppendLine("--- Empire-CP hiring cost by settlement tier ---");
 
             MethodInfo target = AccessTools.Method(typeof(LaborerHireUtil), "CalculateCost", new[] { typeof(int), typeof(int) });
             sb.AppendLine($"resolved target: {(target == null ? "NOT FOUND" : target.DeclaringType.FullName + "." + target.Name + "(int,int)")}");
 
             int count = LaborerHireUtil.CalculateCount();
             int baseCost = count * FCSettings.laborerCostPerDay * FCSettings.laborerDurationDays;
-            sb.AppendLine($"base quote: {count} laborers x {FCSettings.laborerCostPerDay}/day x {FCSettings.laborerDurationDays} days = {baseCost} silver (unscaled)");
-            sb.AppendLine($"bounds: population 0 -> x{RegionalHiringCost.MaxFactor:0.00}, dense -> x{RegionalHiringCost.MinFactor:0.00}, pivot at {RegionalHiringCost.PivotPopulation:0} pop");
+            sb.AppendLine($"base quote: {count} laborers x {FCSettings.laborerCostPerDay}/day x {FCSettings.laborerDurationDays} days = {baseCost} silver (unadjusted)");
 
-            var mgr = Find.World?.GetComponent<SynapseRegionManager>();
-            var provinces = mgr?.Provinces;
-            if (provinces == null || provinces.Count == 0)
+            sb.Append("ladder:");
+            foreach (SettlementTier t in new[] { SettlementTier.Village, SettlementTier.Town, SettlementTier.City, SettlementTier.MajorCity, SettlementTier.Metropolis })
             {
-                sb.AppendLine("no regions resolved on this world.");
+                sb.Append($"  {HiringCostModel.TierLabel(t)} {HiringCostModel.PercentLabel(t)}");
+            }
+            sb.AppendLine();
+
+            var settlements = FindFC.Settlements;
+            if (settlements == null || settlements.Count == 0)
+            {
+                sb.AppendLine("no Empire settlements on this world.");
                 Log.Message(sb.ToString());
                 return;
             }
 
-            var sample = provinces
-                .OrderByDescending(p => p.currentPopulation)
-                .Where((p, i) => i < 4 || i >= provinces.Count - 4)   // densest few and emptiest few
-                .Distinct();
-
-            foreach (var p in sample)
+            foreach (var s in settlements.OrderBy(s => (int)HiringCostPatches.TierOf(s)))
             {
-                int pop = p.currentPopulation;
-                float factor = RegionalHiringCost.Factor(pop);
-                int scaled = RegionalHiringCost.Scale(baseCost, pop);
-                string where = string.IsNullOrEmpty(p.name) ? $"region {p.id}" : p.name;
-                sb.AppendLine($"  {where,-24} pop={pop,-5} x{factor:0.00} -> {scaled,-6} ({RegionalHiringCost.Direction(pop)})");
+                if (s == null) continue;
+                SettlementTier tier = HiringCostPatches.TierOf(s);
+                int scaled = HiringCostModel.Scale(baseCost, tier);
+                sb.AppendLine($"  {s.Name,-24} tier={HiringCostModel.TierLabel(tier),-11} {HiringCostModel.PercentLabel(tier),-5} -> {scaled} silver");
             }
 
             Log.Message(sb.ToString());

@@ -4,7 +4,8 @@ using System.Reflection;
 using FactionColonies;
 using FactionColonies.util;
 using HarmonyLib;
-using RegionsAndSocieties;
+using RegionsAndSocieties.Integration;
+using RegionsAndSocieties.Sizing;
 using RimWorld;
 using RimWorld.Planet;
 using UnityEngine;
@@ -13,14 +14,14 @@ using Verse;
 namespace RegionsAndSocieties.EmpireCP
 {
     /// <summary>
-    /// Wires Empire's laborer hiring cost to the region it is hired into (issue #2). Empire quotes a
-    /// flat price from settlement count and settings; here that price is scaled by the population of
-    /// the region receiving the labour, read through core's public population endpoint
-    /// (<see cref="PopulationDensityUtility"/> / <see cref="SynapseRegionManager"/>). All arithmetic
-    /// and wording live in the pure <see cref="RegionalHiringCost"/>; this file only resolves the
-    /// region and moves the number.
+    /// Ties Empire's laborer hiring cost to the tier of the settlement it is hired into (issue #2).
+    /// Empire quotes a flat price from settlement count and settings; here that price is adjusted by
+    /// the destination settlement's Village/Town/City/Major-City tier, classified through core's
+    /// <see cref="SettlementSizeEvaluator"/> reading Empire's own level via the adapter registry. All
+    /// arithmetic and wording live in the pure <see cref="HiringCostModel"/>; this file only resolves
+    /// the settlement and moves the number.
     ///
-    /// <para>The single scaled seam is <c>LaborerHireUtil.CalculateCost(int,int)</c> — Empire's only
+    /// <para>The single adjusted seam is <c>LaborerHireUtil.CalculateCost(int,int)</c> — Empire's only
     /// caller of it is the quote (<c>CurrentCost</c>, shown on the button and used for the affordability
     /// check) and the charge (inside <c>HireLaborers</c>), so patching it once keeps the quoted and
     /// the paid price identical by construction. Identified against Empire Refactored's real assembly;
@@ -29,17 +30,17 @@ namespace RegionsAndSocieties.EmpireCP
     /// </summary>
     public static class HiringCostPatches
     {
-        /// <summary>The region context recorded by the most recent cost calculation, for the tooltip.</summary>
-        internal struct RegionCostContext
+        /// <summary>The tier context recorded by the most recent cost calculation, for the tooltip.</summary>
+        internal struct HireCostContext
         {
             public bool valid;
-            public string regionName;
-            public int population;
+            public string settlementName;
+            public SettlementTier tier;
             public int baseCost;
             public int scaledCost;
         }
 
-        internal static RegionCostContext LastContext;
+        internal static HireCostContext LastContext;
 
         private static bool warned;
 
@@ -48,33 +49,35 @@ namespace RegionsAndSocieties.EmpireCP
         {
             if (warned) return;
             warned = true;
-            Log.Warning($"[RegionsAndSocieties.EmpireCP] Regional hiring cost could not resolve a region; "
-                      + $"leaving Empire's flat price unscaled. This is logged once. {ex}");
+            Log.Warning($"[RegionsAndSocieties.EmpireCP] Regional hiring cost could not resolve a settlement tier; "
+                      + $"leaving Empire's flat price unadjusted. This is logged once. {ex}");
         }
 
         /// <summary>
-        /// Scale a freshly-computed Empire laborer cost by the region it is hired into, and record the
-        /// context so the button tooltip can explain it. On any failure the price is left exactly as
-        /// Empire computed it, and the recorded context is invalidated so no stale tooltip shows.
+        /// Adjust a freshly-computed Empire laborer cost by the tier of the settlement it is hired
+        /// into, and record the context so the button tooltip can explain it. On any failure the price
+        /// is left exactly as Empire computed it, and the recorded context is invalidated so no stale
+        /// tooltip shows.
         /// </summary>
         internal static void ScaleAndRecord(ref int result)
         {
             int baseCost = result;
             try
             {
-                if (!TryResolveRegion(out string regionName, out int population))
+                if (!TryResolveHiringSettlement(out WorldSettlementFC settlement))
                 {
                     LastContext = default;
                     return;
                 }
 
-                int scaled = RegionalHiringCost.Scale(baseCost, population);
+                SettlementTier tier = TierOf(settlement);
+                int scaled = HiringCostModel.Scale(baseCost, tier);
                 result = scaled;
-                LastContext = new RegionCostContext
+                LastContext = new HireCostContext
                 {
                     valid = true,
-                    regionName = regionName,
-                    population = population,
+                    settlementName = settlement.Name,
+                    tier = tier,
                     baseCost = baseCost,
                     scaledCost = scaled,
                 };
@@ -87,59 +90,48 @@ namespace RegionsAndSocieties.EmpireCP
         }
 
         /// <summary>
-        /// The region the player is hiring into: the tax settlement's tile, falling back to the first
-        /// colony. Population is the region's aggregate dwelling count from core's public endpoint —
-        /// the honest "how many people are here", not the smeared heatmap influence. Falls back to the
-        /// per-tile heatmap read only if the tile has no resolved province.
+        /// The settlement the player is hiring into: the one on the tax map (where the labour is
+        /// delivered), falling back to the first colony.
         /// </summary>
-        private static bool TryResolveRegion(out string regionName, out int population)
+        private static bool TryResolveHiringSettlement(out WorldSettlementFC settlement)
         {
-            regionName = null;
-            population = 0;
-
-            World world = Find.World;
-            if (world == null) return false;
-
-            PlanetTile tile = default;
-            bool haveTile = false;
+            settlement = null;
+            var settlements = FindFC.Settlements;
+            if (settlements == null || settlements.Count == 0) return false;
 
             Map taxMap = FindFC.TaxMap;
             if (taxMap != null)
             {
-                tile = taxMap.Tile;
-                haveTile = tile.Valid;
+                settlement = settlements.FirstOrDefault(s => s != null && ((WorldObject)s).Tile.tileId == taxMap.Tile.tileId);
             }
-            if (!haveTile)
+            if (settlement == null)
             {
-                WorldSettlementFC first = FindFC.Settlements?.FirstOrDefault();
-                if (first != null)
-                {
-                    tile = ((WorldObject)first).Tile;
-                    haveTile = tile.Valid;
-                }
+                settlement = settlements.FirstOrDefault(s => s != null);
             }
-            if (!haveTile) return false;
-
-            int tileId = tile.tileId;
-            SynapseRegionManager mgr = world.GetComponent<SynapseRegionManager>();
-            GeographicProvince province = mgr?.GetProvinceForTile(tileId);
-            if (province != null)
-            {
-                regionName = province.name;
-                population = province.currentPopulation;
-            }
-            else
-            {
-                population = PopulationDensityUtility.GetPopulationAtTile(tileId);
-            }
-            return true;
+            return settlement != null;
         }
 
         /// <summary>
-        /// Add an always-on tooltip to the hire-laborers button explaining the regional basis of the
+        /// The settlement's tier, classified by core from Empire's own population and upgrade level —
+        /// both read through the adapter registry, so this mod's own adapter is what answers.
+        /// </summary>
+        internal static SettlementTier TierOf(WorldSettlementFC settlement)
+        {
+            if (settlement == null) return SettlementTier.None;
+            if (!WorldObjectAdapterRegistry.TryClassify(settlement, out WorldObjectKind kind))
+            {
+                kind = WorldObjectKind.Settlement;
+            }
+            WorldObjectAdapterRegistry.TryGetPopulation(settlement, out int population);
+            WorldObjectAdapterRegistry.TryGetLevel(settlement, out int level, out int maxLevel);
+            return SettlementSizeEvaluator.Classify(kind, population, 0, level, maxLevel);
+        }
+
+        /// <summary>
+        /// Add an always-on tooltip to the hire-laborers button explaining the tier basis of the
         /// price. Only the enabled button is handled here — Empire already tips its own reason on the
         /// disabled one. The button is identified without string-guessing: its label is exactly the
-        /// <c>FCHireLaborers</c> translation at the current scaled quote, which we rebuild from the
+        /// <c>FCHireLaborers</c> translation at the current adjusted quote, which we rebuild from the
         /// recorded context (drawn on the same frame, so it matches in any language).
         /// </summary>
         internal static void MaybeTipHireButton(Rect rect, string label, bool active)
@@ -147,14 +139,14 @@ namespace RegionsAndSocieties.EmpireCP
             try
             {
                 if (!active || string.IsNullOrEmpty(label)) return;
-                RegionCostContext ctx = LastContext;
+                HireCostContext ctx = LastContext;
                 if (!ctx.valid) return;
 
                 string expected = TranslatorFormattedStringExtensions.Translate("FCHireLaborers", (NamedArgument)ctx.scaledCost);
                 if (label != expected) return;
 
                 TooltipHandler.TipRegion(rect, new TipSignal(
-                    RegionalHiringCost.Describe(ctx.regionName, ctx.population, ctx.baseCost, ctx.scaledCost)));
+                    HiringCostModel.Describe(ctx.settlementName, ctx.tier, ctx.baseCost, ctx.scaledCost)));
             }
             catch (Exception ex)
             {
@@ -164,8 +156,8 @@ namespace RegionsAndSocieties.EmpireCP
     }
 
     /// <summary>
-    /// The one scaled seam: both the quoted and the paid laborer price route through
-    /// <c>CalculateCost</c>, so scaling it here keeps them identical.
+    /// The one adjusted seam: both the quoted and the paid laborer price route through
+    /// <c>CalculateCost</c>, so adjusting it here keeps them identical.
     /// </summary>
     [HarmonyPatch]
     public static class Patch_LaborerHireUtil_CalculateCost
@@ -181,29 +173,6 @@ namespace RegionsAndSocieties.EmpireCP
         public static void Postfix(ref int __result)
         {
             HiringCostPatches.ScaleAndRecord(ref __result);
-        }
-    }
-
-    /// <summary>
-    /// Request a fresh heatmap the moment a hire is committed, so the price charged inside
-    /// <c>HireLaborers</c> (and the quote redrawn immediately after) reflects the latest population
-    /// rather than a stale cached aggregate.
-    /// </summary>
-    [HarmonyPatch]
-    public static class Patch_LaborerHireUtil_HireLaborers
-    {
-        public static bool Prepare() { return EmpirePatches.PrepareGuard(TargetMethod(), "Patch_LaborerHireUtil_HireLaborers"); }
-
-        public static MethodBase TargetMethod()
-        {
-            return AccessTools.Method(typeof(LaborerHireUtil), "HireLaborers");
-        }
-
-        [HarmonyPrefix]
-        public static void Prefix()
-        {
-            try { PopulationDensityUtility.MarkCacheDirty(); }
-            catch (Exception ex) { HiringCostPatches.WarnOnce(ex); }
         }
     }
 

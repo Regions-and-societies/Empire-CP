@@ -1,4 +1,4 @@
-[b]Version:[/b] v0.1.2 (Target: RimWorld 1.6)
+[b]Version:[/b] v0.3.0 (Target: RimWorld 1.6)
 
 [img]https://i.imgur.com/8lcHaQo.png[/img]
 
@@ -15,11 +15,11 @@ Compatibility patch: [url=https://steamcommunity.com/sharedfiles/filedetails/?id
 
 No settings of its own - all governance toggles live in Regions and Societies. Installed means enabled.
 
-[h2]Changelog (v0.1.2)[/h2]
+[h2]Changelog (v0.3.0)[/h2]
 [list]
-[*] RimSort install fix: the release zip now carries the mod files at its root, so RimSort no longer creates a broken nested folder on install. No gameplay changes.
-[*] New Workshop preview: series-banner design naming the patched mod, with a version stamp.
-[*] Mod author is now credited as archdukejim.
+[*] Family version alignment: the Regions and Societies compatibility patches now share the core mods' version line; this release jumps to 0.3.0 with no gameplay changes.
+[*] Series mod icon added, matching the rest of the family in the mod list.
+[*] Workshop preview restamped at v0.3.0.
 [/list]
 
 [h2]Requirements[/h2]

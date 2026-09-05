@@ -4,7 +4,7 @@
     <author>archdukejim</author>
     <packageId>RegionsAndSocieties.EmpireCP</packageId>
     <url>https://github.com/Regions-and-societies/Empire-CP</url>
-    <modVersion>0.1.2</modVersion>
+    <modVersion>0.3.0</modVersion>
     <supportedVersions>
         <li>1.6</li>
     </supportedVersions>
@@ -26,7 +26,7 @@
         <li>RegionsAndSocieties.CoreRP2</li>
         <li>Matathias.Empire</li>
     </loadAfter>
-    <description>Version: v0.1.2
+    <description>Version: v0.3.0
 
 Compatibility patch: Empire Refactored colonies are classified, populated and owned under Regions and Societies territory rules, and Empire's settlement placement, reward economy and tithe respect regional ownership.
 
@@ -38,10 +38,10 @@ Features:
 
 Requires: Regions and Societies (either the standard or the Realistic Planets 2 edition) and Empire Refactored. No settings of its own - governance toggles live in Regions and Societies.
 
---- Changelog (v0.1.2) ---
-- RimSort install fix: the release zip now carries the mod files at its root, so RimSort no longer creates a broken nested folder on install. No gameplay changes.
-- New Workshop preview: series-banner design naming the patched mod, with a version stamp.
-- Mod author is now credited as archdukejim.
+--- Changelog (v0.3.0) ---
+- Family version alignment: the Regions and Societies compatibility patches now share the core mods' version line; this release jumps to 0.3.0 with no gameplay changes.
+- Series mod icon added (About/ModIcon.png), matching the rest of the family in the mod list.
+- Workshop preview restamped at v0.3.0.
 
 Source: https://github.com/Regions-and-societies/Empire-CP
 Support development: https://ko-fi.com/archdukejim</description>
